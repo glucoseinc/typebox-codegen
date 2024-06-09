@@ -150,6 +150,15 @@ export namespace ModelToValibot {
       const constraints: string[] = []
       if (this.IsDefined<number>(schema.maxLength)) constraints.push(`v.maxLength(${schema.maxLength})`)
       if (this.IsDefined<number>(schema.minLength)) constraints.push(`v.minLength(${schema.minLength})`)
+      if (this.IsDefined<string>(schema.format)) {
+        switch (schema.format) {
+          case 'date':
+            constraints.push(`v.isoDate()`)
+            break
+          default:
+            throw new Error(`Unsupported format: ${schema.format}`)
+        }
+      }
       return this.Type(`v.string`, null, constraints)
     }
     Number(schema: Types.TNumber) {
