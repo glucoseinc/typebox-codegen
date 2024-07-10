@@ -137,7 +137,8 @@ export namespace ModelToValibot {
       if (key === `^(0|[1-9][0-9]*)$`) {
         return UnsupportedType(schema)
       } else {
-        return Type(`v.record`, type, [])
+        const keyType = key === '^(.*)$' ? Type('v.string', null, []) : Type('v.string', null, [`v.regex(/${key}/)`])
+        return Type(`v.record`, [keyType, type].join(', '), [])
       }
     }
     throw Error(`Unreachable`)
