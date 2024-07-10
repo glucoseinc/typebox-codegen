@@ -156,8 +156,8 @@ export namespace ModelToValibot {
     return Type(`v.tuple`, `[${items}]`, [])
   }
   function TemplateLiteral(schema: Types.TTemplateLiteral) {
-    const constaint = Type(`v.regex`, `/${schema.pattern}/`, [])
-    return Type(`v.string`, null, [constaint])
+    const constraint = Type(`v.regex`, `/${schema.pattern}/`, [])
+    return Type(`v.string`, null, [constraint])
   }
   function UInt8Array(schema: Types.TUint8Array): string {
     return UnsupportedType(schema)
