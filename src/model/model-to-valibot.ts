@@ -155,6 +155,9 @@ export namespace ModelToValibot {
           case 'date':
             constraints.push(`v.isoDate()`)
             break
+          case 'date-time':
+            constraints.push(`v.isoDateTime()`)
+            break
           default:
             throw new Error(`Unsupported format: ${schema.format}`)
         }
