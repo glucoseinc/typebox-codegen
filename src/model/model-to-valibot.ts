@@ -107,6 +107,9 @@ export namespace ModelToValibot {
         case 'date-time':
           constraints.push(`v.isoTimestamp()`)
           break
+        case 'uuid':
+          constraints.push(`v.uuid()`)
+          break
         default:
           throw new Error(`Unsupported format: ${schema.format}`)
       }
