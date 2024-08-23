@@ -85,8 +85,8 @@ export namespace ModelToValibot {
   }
   function Literal(schema: Types.TLiteral) {
     // prettier-ignore
-    return typeof schema.const === `string` 
-      ? Type(`v.literal`, `'${schema.const}'`, []) 
+    return typeof schema.const === `string`
+      ? Type(`v.literal`, `'${schema.const}'`, [])
       : Type(`v.literal`, `${schema.const}`, [])
   }
   function Never(schema: Types.TNever) {
@@ -99,6 +99,21 @@ export namespace ModelToValibot {
     const constraints: string[] = []
     if (IsDefined<number>(schema.maxLength)) constraints.push(`v.maxLength(${schema.maxLength})`)
     if (IsDefined<number>(schema.minLength)) constraints.push(`v.minLength(${schema.minLength})`)
+    if (IsDefined<string>(schema.format)) {
+      switch (schema.format) {
+        case 'date':
+          constraints.push(`v.isoDate()`)
+          break
+        case 'date-time':
+          constraints.push(`v.isoTimestamp()`)
+          break
+        case 'uuid':
+          constraints.push(`v.uuid()`)
+          break
+        default:
+          throw new Error(`Unsupported format: ${schema.format}`)
+      }
+    }
     return Type(`v.string`, null, constraints)
   }
   function Number(schema: Types.TNumber) {
@@ -128,7 +143,8 @@ export namespace ModelToValibot {
       if (key === `^(0|[1-9][0-9]*)$`) {
         return UnsupportedType(schema)
       } else {
-        return Type(`v.record`, type, [])
+        const keyType = key === '^(.*)$' ? Type('v.string', null, []) : Type('v.string', null, [`v.regex(/${key}/)`])
+        return Type(`v.record`, [keyType, type].join(', '), [])
       }
     }
     throw Error(`Unreachable`)
@@ -146,8 +162,8 @@ export namespace ModelToValibot {
     return Type(`v.tuple`, `[${items}]`, [])
   }
   function TemplateLiteral(schema: Types.TTemplateLiteral) {
-    const constaint = Type(`v.regex`, `/${schema.pattern}/`, [])
-    return Type(`v.string`, null, [constaint])
+    const constraint = Type(`v.regex`, `/${schema.pattern}/`, [])
+    return Type(`v.string`, null, [constraint])
   }
   function UInt8Array(schema: Types.TUint8Array): string {
     return UnsupportedType(schema)
