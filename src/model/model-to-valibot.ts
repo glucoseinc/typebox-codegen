@@ -91,8 +91,8 @@ export namespace ModelToValibot {
     return Type(`v.intersect`, `[${inner.join(', ')}]`, [])
   }
   function Literal(schema: Types.TLiteral) {
-    return typeof schema.const === `string` 
-      ? Type(`v.literal`, `'${schema.const}'`, []) 
+    return typeof schema.const === `string`
+      ? Type(`v.literal`, `'${schema.const}'`, [])
       : Type(`v.literal`, `${schema.const}`, [])
   }
   function Never(schema: Types.TNever) {
@@ -101,11 +101,82 @@ export namespace ModelToValibot {
   function Null(schema: Types.TNull) {
     return Type(`v.null`, null, [])
   }
-  function String(schema: Types.TString) {
+
+  function processStringSchema(options: {
+    format?: string
+    pattern?: string
+    minLength?: number
+    maxLength?: number
+  }): string {
+    const { format, pattern, minLength, maxLength } = options
     const constraints: string[] = []
-    if (IsDefined<number>(schema.maxLength)) constraints.push(`v.maxLength(${schema.maxLength})`)
-    if (IsDefined<number>(schema.minLength)) constraints.push(`v.minLength(${schema.minLength})`)
-    return Type(`v.string`, null, constraints)
+
+    const lengthConstraints = getLengthConstraints(minLength, maxLength)
+    constraints.push(...lengthConstraints)
+
+    const patternConstraints = getPatternConstraints(pattern)
+    constraints.push(...patternConstraints)
+
+    const formatValidator = getFormatValidator(format)
+    const constraintsStr = constraints.length > 0 ? constraints.join(', ') : ''
+
+    return createStringValidatorWithFormat(formatValidator, constraintsStr)
+  }
+
+  function createStringValidatorWithFormat(formatValidator: string | null, constraintsStr: string): string {
+    if (formatValidator) {
+      if (constraintsStr) {
+        return `v.pipe(v.string(), ${formatValidator}, ${constraintsStr})`
+      }
+      return `v.pipe(v.string(), ${formatValidator})`
+    }
+    if (constraintsStr) {
+      return `v.pipe(v.string(), ${constraintsStr})`
+    }
+    return 'v.string()'
+  }
+
+  function getLengthConstraints(minLength?: number, maxLength?: number): string[] {
+    const constraints: string[] = []
+    if (IsDefined<number>(maxLength)) constraints.push(`v.maxLength(${maxLength})`)
+    if (IsDefined<number>(minLength)) constraints.push(`v.minLength(${minLength})`)
+    return constraints
+  }
+
+  function getPatternConstraints(pattern?: string): string[] {
+    const constraints: string[] = []
+    if (pattern) {
+      const escapedPattern = pattern.replace(/\//g, '\\/')
+      constraints.push(`v.regex(/${escapedPattern}/)`)
+    }
+    return constraints
+  }
+
+  function getFormatValidator(format?: string): string | null {
+    if (!format) return null
+
+    const formatMap: Record<string, string> = {
+      'date-time': 'v.isoTimestamp()',
+      email: 'v.email()',
+      uri: 'v.url()',
+      url: 'v.url()',
+      uuid: 'v.uuid()',
+      date: 'v.isoDate()',
+      time: 'v.isoTime()',
+      ipv4: 'v.ipv4()',
+      ipv6: 'v.ipv6()',
+    }
+
+    return formatMap[format] || null
+  }
+
+  function String(schema: Types.TString) {
+    return processStringSchema({
+      format: schema.format,
+      pattern: schema.pattern,
+      minLength: schema.minLength,
+      maxLength: schema.maxLength,
+    })
   }
   function Number(schema: Types.TNumber) {
     const constraints: string[] = []
@@ -134,13 +205,13 @@ export namespace ModelToValibot {
   function Record(schema: Types.TRecord) {
     for (const [key, value] of globalThis.Object.entries(schema.patternProperties)) {
       const type = Visit(value)
-      if (key === `^(0|[1-9][0-9]*)$`) {
+      if (key === '^(0|[1-9][0-9]*)$') {
         return Type('v.record', `v.number(), ${type}`, [])
-      } else {
-        return Type(`v.record`, `v.string(), ${type}`, [])
       }
+      const keyValidator = processStringSchema({ pattern: key })
+      return Type('v.record', `${keyValidator}, ${type}`, [])
     }
-    throw Error(`Unreachable`)
+    throw Error('Unreachable')
   }
   function Ref(schema: Types.TRef) {
     if (!reference_map.has(schema.$ref!)) return UnsupportedType(schema)
