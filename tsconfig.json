@@ -5,7 +5,10 @@
     "target": "ESNext",
     "baseUrl": ".",
     "paths": {
-      "@sinclair/typebox-codegen": ["src/index.ts"]
-    }
+      "@sinclair/typebox-codegen": [
+        "src/index.ts"
+      ]
+    },
+    "skipLibCheck": true
   }
 }
