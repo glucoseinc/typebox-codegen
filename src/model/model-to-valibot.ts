@@ -190,10 +190,10 @@ export namespace ModelToValibot {
     const properties = globalThis.Object.entries(schema.properties).map(([key, value]) => {
       const optional = Types.TypeGuard.IsOptional(value)
       const property = PropertyEncoder.Encode(key)
-      return optional 
+      return optional
         ? settings.exactOptionalPropertyTypes
-          ? `${property}: v.exactOptional(${Visit(value)})` 
-          : `${property}: v.optional(${Visit(value)})` 
+          ? `${property}: v.exactOptional(${Visit(value)})`
+          : `${property}: v.optional(${Visit(value)})`
         : `${property}: ${Visit(value)}`
     }).join(`,`)
     const constraints: string[] = []
@@ -245,12 +245,46 @@ export namespace ModelToValibot {
   function Void(schema: Types.TVoid) {
     return Type(`v.void`, null, [])
   }
+  function Transform(schema: Types.TTransform) {
+    const { [Types.TransformKind]: _, ...newSchema } = schema
+
+    // Decodeを適当な引数で実行し、その返却された型から入力のSchemaを算出する
+    let fromStr = ''
+    try {
+      fromStr = Visit(TypeToSchema(typeof schema[Types.TransformKind].Decode(1)))
+    } catch (_) {
+      fromStr = 'v.any()'
+    }
+
+    // transformの処理内容はEncodeをそのまま流用する
+    const transformCallback = schema[Types.TransformKind].Encode.toString()
+
+    // schemaから出力のSchemaを算出する
+    const toStr = Visit(newSchema)
+    const constraints: string[] = []
+
+    // v.pipeの場合その中身のみ、v.pipeでない場合はその値を使用する
+    const match = toStr.match(/v\.pipe\s*\((.*)\)/)
+    if (match) {
+      match[1].split(',').forEach(s => constraints.push(s.trim()))
+    } else {
+      constraints.push(toStr.trim())
+    }
+
+    // "()"が付与されてしまうので、Type関数は使わず自力で組み立てる
+    return `v.pipe(
+      ${fromStr},
+      v.transform(${transformCallback}),
+      ${constraints.join(', ')}
+    )`
+  }
   function UnsupportedType(schema: Types.TSchema) {
     return `v.any(/* unsupported */)`
   }
   function Visit(schema: Types.TSchema): string {
     if (schema.$id !== undefined) reference_map.set(schema.$id, schema)
     if (schema.$id !== undefined && emitted_set.has(schema.$id!)) return schema.$id!
+    if (Types.TypeGuard.IsTransform(schema)) return Transform(schema)
     if (Types.TypeGuard.IsAny(schema)) return Any(schema)
     if (Types.TypeGuard.IsArray(schema)) return Array(schema)
     if (Types.TypeGuard.IsBigInt(schema)) return BigInt(schema)
@@ -278,6 +312,23 @@ export namespace ModelToValibot {
     if (Types.TypeGuard.IsUnknown(schema)) return Unknown(schema)
     if (Types.TypeGuard.IsVoid(schema)) return Void(schema)
     return UnsupportedType(schema)
+  }
+  // 型文字列からtypeboxのSchemaを作成する関数
+  function TypeToSchema(type: string) {
+    switch (type) {
+      case 'string':
+        return Types.String()
+      case 'number':
+        return Types.Number()
+      case 'boolean':
+        return Types.Boolean()
+      case 'array':
+        return Types.Array(Types.Any())
+      case 'object':
+        return Types.Object({})
+      default:
+        return Types.Any()
+    }
   }
   function Collect(schema: Types.TSchema) {
     return [...Visit(schema)].join(``)
