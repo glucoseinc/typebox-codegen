@@ -128,3 +128,28 @@ export const Test = v.object({
   Assert.IsEqual(code, expect)
 })
 
+test('ModelToValibot:Transform Error Object to Array', () => {
+  const TestSchema = Types.Transform(Types.Array(Types.String(), { $id: 'Test' }))
+    .Decode((v) => {
+      return v.reduce((object, key) => {
+        object[key] = true
+        return object
+      }, {} as Record<string, boolean>)
+    })
+    .Encode((v) => Object.keys(v))
+
+  const code = ModelToValibot.Generate({
+    types: [TestSchema],
+  })
+  const expect =
+`import * as v from 'valibot'
+
+export type Test = v.InferOutput<typeof Test>
+export const Test = v.pipe(
+  v.any(/* failed to convert from Decode function */),
+  v.transform((v) => Object.keys(v)),
+  v.array(v.string())
+)
+`
+  Assert.IsEqual(code, expect)
+})

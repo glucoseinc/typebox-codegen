@@ -252,8 +252,15 @@ export namespace ModelToValibot {
     let fromStr = ''
     try {
       fromStr = Visit(TypeToSchema(typeof schema[Types.TransformKind].Decode(1)))
-    } catch (_) {
-      fromStr = 'v.any()'
+    } catch (e) {
+      console.warn(
+        '[ModelToValibot] An error occurred while executing the Decode function with argument 1, so it was converted to "any"',
+        {
+          Decode: schema[Types.TransformKind].Decode.toString(),
+          error: e
+        }
+      )
+      fromStr = 'v.any(/* failed to convert from Decode function */)'
     }
 
     // transformの処理内容はEncodeをそのまま流用する
