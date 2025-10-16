@@ -84,7 +84,12 @@ export namespace ModelToValibot {
     return UnsupportedType(schema)
   }
   function Integer(schema: Types.TInteger) {
-    return Type(`v.number`, null, [`v.integer()`])
+    const constraints: string[] = [`v.integer()`]
+    if (IsDefined<number>(schema.minimum)) constraints.push(`v.minValue(${schema.minimum})`)
+    if (IsDefined<number>(schema.maximum)) constraints.push(`v.maxValue(${schema.maximum})`)
+    if (IsDefined<number>(schema.exclusiveMinimum)) constraints.push(`v.minValue(${schema.exclusiveMinimum + 1})`)
+    if (IsDefined<number>(schema.exclusiveMaximum)) constraints.push(`v.maxValue(${schema.exclusiveMaximum - 1})`)
+    return Type(`v.number`, null, constraints)
   }
   function Intersect(schema: Types.TIntersect) {
     const inner = schema.allOf.map((inner) => Visit(inner))
